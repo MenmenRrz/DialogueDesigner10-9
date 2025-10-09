@@ -114,7 +114,7 @@
                 <a-collapse-panel
                   v-for="(session, sessionIndex) in reviewSessions"
                   :key="getSessionKey(sessionIndex)"
-                  :header="session.sessionName"
+                  :header="getSessionHeader(session)"
                 >
                   <div class="topic-tree">
                     <div
@@ -168,7 +168,9 @@
               <div v-if="currentTopic" class="detail-card">
                 <div class="detail-header">
                   <h2 class="detail-title">{{ currentTopic.topicName }}</h2>
-                  <span class="detail-session">{{ currentSession?.sessionName }}</span>
+                  <span class="detail-session">{{
+                    currentTopic?.topicName || currentSession?.sessionName
+                  }}</span>
                 </div>
                 <div v-if="currentSubtopics.length" class="detail-subtopics">
                   <div
@@ -258,6 +260,11 @@ type ReviewTopic = {
 type ReviewSession = {
   sessionName: string
   topics: ReviewTopic[]
+}
+
+const getSessionHeader = (session: ReviewSession) => {
+  const firstTopic = session.topics?.[0]?.topicName
+  return firstTopic || session.sessionName
 }
 
 const router = useRouter()

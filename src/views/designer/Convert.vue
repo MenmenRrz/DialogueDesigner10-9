@@ -397,101 +397,69 @@ import { computed, onMounted, onBeforeUnmount, ref, reactive, createVNode, watch
 import { register } from '@antv/x6-vue-shape'
 
 import StageNode from '@/components/StageNode.vue'
-
 import { Cell, Graph, Path, Shape } from '@antv/x6'
-
 import OptionNode from '@/components/OptionNode.vue'
-
 import { Modal, message } from 'ant-design-vue'
-
 import { DownOutlined, ExclamationCircleOutlined, RightOutlined } from '@ant-design/icons-vue'
-
 import { v4 as uuidV4 } from 'uuid'
-
 import type { StageNodeMenu } from '@/utils/formatGeneticCounseling'
 
+const STAGE_PORT_ATTRS = {
+  magnet: true,
+  stroke: '#8f8f8f',
+  r: 7,
+}
 
+const OPTION_PORT_DISCONNECTED_ATTRS = {
+  magnet: true,
+  stroke: '#ff4d4f',
+  fill: '#fff1f0',
+  r: 8,
+}
+
+const OPTION_PORT_CONNECTED_ATTRS = {
+  magnet: true,
+  stroke: '#52c41a',
+  fill: '#f6ffed',
+  r: 7,
+}
 
 register({
-
   shape: 'stage-node',
-
   width: 150,
-
   height: 150,
-
   component: StageNode,
-
   ports: {
-
     groups: {
-
       left: {
-
         position: 'left',
-
         attrs: {
-
           circle: {
-
-            magnet: true,
-
-            stroke: '#8f8f8f',
-
-            r: 6,
-
+            ...STAGE_PORT_ATTRS,
           },
-
         },
-
       },
-
     },
-
   },
-
 })
 
-
-
 register({
-
   shape: 'option-node',
-
   width: 258,
-
   height: 36,
-
   ports: {
-
     groups: {
-
       right: {
-
         position: 'right',
-
         attrs: {
-
           circle: {
-
-            magnet: true,
-
-            stroke: '#8f8f8f',
-
-            r: 5,
-
+            ...OPTION_PORT_DISCONNECTED_ATTRS,
           },
-
         },
-
       },
-
     },
-
   },
-
   component: OptionNode,
-
 })
 
 
@@ -530,6 +498,49 @@ const {
   topicIssues,
   api1Result,
 } = storeToRefs(designerStore)
+
+const OPTION_NODE_SHAPE = 'option-node'
+
+const applyOptionPortAttrs = (node: any, attrs: Record<string, unknown>) => {
+  const ports = node?.getPorts?.() ?? []
+  if (!ports.length) {
+    return
+  }
+  const { id } = ports[0]
+  if (!id) {
+    return
+  }
+  Object.entries(attrs).forEach(([key, value]) => {
+    node.setPortProp?.(id, `attrs/circle/${key}`, value)
+  })
+}
+
+const updateOptionNodePortState = (node: any) => {
+  if (!node || node.shape !== OPTION_NODE_SHAPE) {
+    return
+  }
+  const edges = graph.value?.getConnectedEdges?.(node) ?? []
+  const isConnected = edges.some((edge: any) => edge?.getSourceCellId?.() === node.id)
+  const attrs = isConnected ? OPTION_PORT_CONNECTED_ATTRS : OPTION_PORT_DISCONNECTED_ATTRS
+  applyOptionPortAttrs(node, attrs)
+}
+
+const updateOptionPortByCellId = (cellId: string | null | undefined) => {
+  if (!cellId || !graph.value) {
+    return
+  }
+  const cell = graph.value.getCellById(cellId)
+  if (cell?.shape === OPTION_NODE_SHAPE) {
+    updateOptionNodePortState(cell)
+  }
+}
+
+const refreshAllOptionNodePorts = () => {
+  const nodes = graph.value?.getNodes?.() ?? []
+  nodes.forEach((node: any) => {
+    updateOptionNodePortState(node)
+  })
+}
 
 
 
@@ -2217,6 +2228,29 @@ onMounted(() => {
 
   })
 
+  graph.on('edge:connected', ({ edge }) => {
+    updateOptionPortByCellId(edge?.getSourceCellId?.())
+    updateOptionPortByCellId(edge?.getTargetCellId?.())
+  })
+
+  graph.on('edge:removed', ({ edge }) => {
+    updateOptionPortByCellId(edge?.getSourceCellId?.())
+    updateOptionPortByCellId(edge?.getTargetCellId?.())
+  })
+
+  graph.on('node:added', ({ node }) => {
+    updateOptionNodePortState(node)
+  })
+
+  graph.on('node:removed', ({ node }) => {
+    updateOptionNodePortState(node)
+  })
+
+  graph.on('batch:stop', () => {
+    refreshAllOptionNodePorts()
+  })
+  refreshAllOptionNodePorts()
+
   const restoredWorkspace = restoreWorkspace()
   const restoredGeneration = restoreGenerationState()
   flushAllTopicGraphs()
@@ -2954,10 +2988,6 @@ onBeforeUnmount(() => {
 }
 
 </style>
-
-
-
-
 
 
 
