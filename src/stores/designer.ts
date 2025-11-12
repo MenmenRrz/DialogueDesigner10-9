@@ -332,22 +332,56 @@ export const useDesignerStore = defineStore('designer', () => {
 
           TASK DESCRIPTION:
           """
-          You are a conversation designer, who makes plans for topics of dialogue between a virtual agent coach, and the user of that virtual coach.
-          The virtual coach is representing a 50-year-old lady who has been trained for providing health education and counseling to people for a particular behavior change topic. You should think about and plan the high-level topics that the agent presents to these users and output the topical and session-wise structure as a JSON. To do this, take the following steps:
+          You are a dialogue planner designing a serious and supportive health conversation between a human user and an Embodied Conversational Agent (ECA) through the screen. The ECA is a warm, professional, 50-year-old woman trained in health counseling and Motivational Interviewing (MI) , with a lot of experience in patient education and conversation.
 
-          Step 1. Outline the topics that should be discussed based on your knowledge and the guidelines in the "GUIDE FOR WRITING A DIALOGUE DELIVERED BY THE VIRTUAL COUNSELOR". The outline should not generate the conversation itself, but instead should represent a high-level plan that should be followed by the agent. Remember that this plan should be comprehensive enough to guide the agent, and include example topics that should be brought up. Use the format in "all_topics" argument in OUTPUT FORMAT, and replace the topic and subtopic names with titles in your plan.
-          Each subtopic entry must be an object containing the fields "name", "brief", and "mi_technique" (use empty strings if you do not have content for a field).
-          Each subtopic you list must be an object containing the fields "name", "brief", and "mi_technique". Fill "mi_technique" with a concrete Motivational Interviewing strategy (e.g., Open Question, Affirmation, Reflective Listening, Summary, Change Talk). Do not leave it blank鈥攊f unsure, pick the technique that best supports the subtopic.
-          Each session must only have 1 topic, and all topics name must be unique across sessions.
+          This is the user's first time speaking to this virtual counselor. The agent must act like a human: warm, professional, and deeply respectful, not like a chatbot or script reader. The dialogue should unfold logically and flow naturally.
 
-          Step 2. Based on the high level process you have developed, now organize those topics in %d sessions. You can use the guidelines in the "GUIDE FOR WRITING A DIALOGUE DELIVERED BY THE VIRTUAL COUNSELOR" for crafting this %d-session plan. Use the format in "sessions_topics" argument in OUTPUT FORMAT for this part.
-          Each subtopic in "sessions_topics" must use the same object structure ("name", "brief", "mi_technique") even if some values are empty string, but try not to keep it empty.
-          The subtopic entries you include in "sessions_topics" must reuse the same object structure ("name", "brief", "mi_technique") and all three fields must contain text (use the best-fit MI technique; never output placeholders or empty strings).
+          The purpose of the conversation is to educate the user about cervical or breast cancer screening and gently motivate them to consider getting screened. The conversation must be:
+
+          - Serious and focused — this is a health-critical topic
+          - Grounded in safe, medically accurate content only (never speculate or improvise)
+          - Non-coercive — the agent must support autonomy, not pressure the user
+          - Relational — the agent should build trust, comfort, and working alliance
 
 
-          Step 3. Based on your feedback, your mentor may or may not have suggestion for you. If they give you the "MENTOR DIRECTIONS", please re-do the Step 1 and Step 2 based on the "MENTOR DIRECTIONS".
+          YOUR TASK:
+          Design a compact conversation plan with a small number of topics and clearly defined subtopics.
 
-          Step 4. Output the plan in the OUTPUT FORMAT below.
+          STEP 1 — Define Topics
+          Choose 3 to 4 topics maximum. These are the high-level parts of the conversation related to the counseling based on the  AUTHORING CONTEXT, such as:
+          - “Introduce the cervical cancer”
+          - “Explaining cervical screening”
+          - “Discussing common concerns”
+          - “Exploring next steps”
+
+          Each topic should represent a functional chunk of the dialogue. Keep it tight — no fluff. Avoid generic labels like “Education” or “Barriers.”
+
+
+          STEP 2 — Define Subtopics
+
+          Each topic must contain at least 2 subtopics. Each subtopic is a single agent move — what the ECA says or does in one dialogue turn.
+
+          Subtopics must include:
+          - "name": a short name (≤ 8 words)
+          - "brief": one-sentence summary of the subtopic
+          - "mi_technique": choose one:
+
+            - Open Question
+            - Affirmation
+            - Reflective Listening
+            - Summary
+            - Change Talk
+            - Teach
+            - Meta-Relational
+
+          Subtopics must be:
+          - Small and specific (like “Ask how they’re feeling” or “Teach what Pap test is”)
+          - Based on safe, factual, non-speculative content
+          - Emotionally intelligent and autonomy-supportive
+          - Designed for a finite-state virtual agent (1 subtopic = 1 agent state)
+
+          STEP 3 — Output Format (Do not change):
+
 
           OUTPUT FORMAT:
           {
@@ -860,46 +894,97 @@ export const useDesignerStore = defineStore('designer', () => {
       {
         role: 'system',
         content: `GUIDE FOR WRITING A DIALOGUE DELIVERED BY THE VIRTUAL COUNSELOR:
+
         """
         ${convertContent.value}
         """
-        AUTHORING CONTEXT:
+
+        AUTHORING CONTEXT (sole factual source):
         """
         ${buildAuthoringContext()}
         """
+         Contains dialogue goal (Education | Persuasion | Education & Persuasion), persona, age range, gender, etc.
+         All factual teaching/claims must come ONLY from here.
 
-        TOPIC SUMMARY:
+        TOPIC SUMMARY (from API1; subtopics with chunk goals):
         """
         ${topicSummaryPayload}
         """
 
-        MENTOR DIRECTION:
-        """
-        ${mentor}
-        """
-
-        TASK DESCRIPTION:
-        """
-        You are a conversation designer authoring the dialogue for the topic "${topicName}" within the session "${job.sessionName}". Generate only this topic. The conversation must follow the finite state machine format described in OUTPUT FORMAT and should not reference other topics.
-        """
-
-        TOPIC STRUCTURE:
+        TOPIC STRUCTURE (from API1; session = topic; 1:1 mapping):
         """
         ${topicStructurePayload}
         """
 
+        MENTOR DIRECTIONS:
+        """
+        (Deprecated/unused) No mentor directions are used in this run. Ignore any content here.
+        """
+
+        TASK DESCRIPTION:
+        You are generating a finite‑state machine (FSM) dialogue for the topic "${topicName}" in session "${job.sessionName}". Produce only this topic as a **serious, first‑time** conversation between a human and an Embodied Conversational Agent (ECA): a warm, professional 50‑year‑old woman trained in health education and motivational‑interviewing‑style counseling.
+
+        HARD GROUNDING & SCOPE:
+        • Use factual content ONLY from AUTHORING CONTEXT. The GUIDE informs tone/flow/safety—NOT new facts.
+        • If needed facts are missing, DO NOT invent or speculate; prefer relational moves (Reflect, Affirm, Normalize, Check Understanding, Summarize & Bridge).
+        • Serious health counseling: respectful, inclusive, autonomy‑supportive; no coercion, humor, slang, or emojis.
+        • Never provide diagnosis, treatment, or clinical instructions; no speculative/off‑label claims.
+
+        PERSONA & GOAL TAILORING (must do):
+        • Tailor both AGENT lines and USERMENU to the persona, dialogue goal, age, and gender in AUTHORING CONTEXT.
+        • Avoid stereotypes. Use inclusive wording (e.g., “people with a cervix” where appropriate).
+        • Goal‑aware emphasis:
+          – **Education** → Teach Fact → Check Understanding → Summarize/Bridge
+          – **Persuasion** → Reflect/Normalize → Evoke Change Talk → Offer Choice → Summarize/Bridge
+          – **Education & Persuasion** → balance teach + evoke + offer choice
+        • Keep language plain, warm, and autonomy‑supportive (≤ 20 words per AGENT line).
+
+        MI QUICK REFERENCE (for authoring logic; never mention MI to users):
+        • Flow mindset: **Engage → Focus → Evoke → (light) Plan**.
+        • Core moves: Open Question, Reflective Listening, Affirmation, Normalize, Teach Fact, Check Understanding, Summarize & Bridge, Offer Choice, Evoke Change Talk, Signpost Next Topic, Plan Next Step.
+        • Micro‑patterns (≤ 20 words):
+          – Teach Fact: one plain sentence; then Check Understanding
+          – Open Question: start with “What/How”; avoid yes/no
+          – Reflect: feeling + reason (“You’re worried about discomfort and results.”)
+          – Affirm: specific and genuine
+          – Summarize/Signpost: brief recap + gentle next step invite
+
+        TOPIC SEQUENCE & CONTINUITY (global rule):
+        • The full session is a top‑to‑bottom chain of topics from API1 (topic1 → topic2 → … → last topic → end).
+        • For this topic:
+          – **Start** with a soft, human pickup from what was just discussed (assume control returned via $POP();$). Do NOT say the word “topic.”
+          – **End** with a natural, non‑coercive **Summarize & Bridge / Signpost Next Topic** handoff that clearly prepares users for the next topic.
+        • Maintain emotional momentum across topics; avoid resets or abrupt tonal shifts.
+
+        USERMENU DESIGN (user‑voice buttons; persona‑aware):
+        • USERMENU options are what the user “clicks to say.” Each must sound like a **natural response** from this persona (consider goal, age, gender) to the current AGENT line and lead smoothly to the next state.
+        • Provide ≥ 3 options with **diverse intents** (agree/affirm, ask/clarify, doubt/hesitate, curiosity, proceed/plan).
+        • Keep options short (ideally ≤ 12 words); avoid “Next/Continue.”
+        • Do NOT allow requests for clinical advice or personal diagnoses.
+        • **Every referenced \`next_state_name\` must appear later** in the script.
+
+        RECOMMENDATIONS:
+        • Total states per topic: **~10–14** (allowed **7–20**).
+        • AGENT line per state: **≤ 20 words**; plain, inclusive, warm, serious; persona‑ & goal‑aware.
+        • Use unique, descriptive state names (lower_snake_case preferred).
+        • Include at least one **Summarize & Bridge** or **Signpost Next Topic** state near the end.
+
         OUTPUT TARGET:
-        """
-        - Generate between 7 and 20 STATE sections for this topic before ending at STATE: end_conversation.
-        - Each STATE must be unique and include the AGENT and USERMENU sections immediately after it.
-        - Each USERMENU must contain at least three options that use => next_state_name, and every referenced state must appear later in the script.
-        """
-        VALIDATION:
-        """
-        Before you finish, re-read your answer. If the topic violates any requirement above, write RETRYING and regenerate instead of stopping.
-        """
-        FORMAT:
-        """
+        • Generate **7 to 20** STATE sections, then end with STATE: end_conversation.
+        • Each STATE must include immediately:
+          AGENT: one utterance (≤ 20 words; persona‑ & goal‑aware)
+          USERMENU: ≥ 3 natural options, each option text => next_state_name
+        • All referenced next_state_name must appear later** in the script.
+        • Begin with a soft pickup; end with a gentle handoff; then:
+
+        VALIDATION (before returning):
+        • All education strictly from AUTHORING CONTEXT; no speculation.
+        • Persona/goal/age/gender clearly reflected in AGENT and USERMENU.
+        • Serious, respectful, autonomy‑supportive tone; natural USERMENU; valid links; unique state names.
+        • Cohesive continuity: start pickup → realize chunk goals → summarize/bridge → prepare next topic.
+        • If any rule is violated, return exactly **RETRYING** and regenerate a compliant script.
+
+        FORMAT (return script only — no code fences, no comments):
         //${topicName}
         STATE: state_name
         AGENT: agent_utterance (<= 20 words)
@@ -907,9 +992,12 @@ export const useDesignerStore = defineStore('designer', () => {
         option text => next_state_name
         option text => next_state_name
         option text => next_state_name
+
         ...
+
         STATE: end_conversation
         ACTION: $POP();$
+
         """
         `,
       },
@@ -1209,63 +1297,104 @@ export const useDesignerStore = defineStore('designer', () => {
     const topicList = stateContent.value.split(/(?=\n\/\/)/g).map((e) => e.replace(/^\n/, ''))
     const curTopic = topicList.find((e) => e.startsWith(`//${topicGraphSelected.value}`))
 
-    let output = ''
-    if (topicGraphSelected.value && topicGraph.value.has(topicGraphSelected.value)) {
-      const cells = topicGraph.value.get(topicGraphSelected.value)
-      const stages = cells!.filter((e) => e.shape === 'stage-node')
-      output += '\n'
-      output += `//${topicGraphSelected.value}\n`
-      stages!.forEach((stage) => {
-        output += `STATE: ${stage.data.name}\n`
-        output += `AGENT: ${stage.data.agent}\n`
-        output += 'USERMENU:\n';
-        (stage.data.menus || []).forEach((menu: StageNodeMenu, menuIndex: number) => {
-          const optionCellId = stage.children![menuIndex]
-          const edgeCell = cells!.find(
-            (cell) => cell.shape === 'edge' && cell.source.cell === optionCellId,
-          )
-          if (edgeCell) {
-            output += `${menu.title} => ${edgeCell!.target.cell}\n`
-          } else {
-            output += `${menu.title} =>\n`
-          }
-        })
-        output += '\n\n'
-      })
-    }
+    const topicStructureSummary = [
+      `Goal: ${authoringContext.value.goal || 'Not specified'}`,
+      topicGraphSelected.value ? `Topic: ${topicGraphSelected.value}` : null,
+    ]
+      .filter((line): line is string => Boolean(line))
+      .join('\n')
 
     const messages: ChatCompletionSystemMessageParam[] = [
       {
         role: 'system',
         content: `
-          GUIDE FOR WRITING A DIALOGUE DELIVERED BY THE VIRTUAL COUNSELOR:
-          "${convertContent.value}"
-          TASK DESCRIPTION:
-          You are a conversation reviser, who authors dialogue utterances for a virtual agent coach, and most likely utterances for the user of that virtual coach.
-          The virtual coach is representing a 50-year-old lady who has been trained for providing health education and counseling to people for a particular behavior change topic.
-          As the reviser of these conversations, you will take as input an already-created version of the agent's talk with these users, as well as the most common things a user can ask or say in response
-          (all given in CURRENT CONVERSATION), which overall follow the TOPIC STRUCTURE. But you also have a mentor who is a subject matter expert in this area, who has seen the user options
-          and wants to give you guidance on how to revise one of them. You should find your mentor's directions in MENTOR DIRECTIONS and revise the user options of the chosen state (STATE TO REVISE) based on these directions.
+        "
+        ${convertContent.value}
+        "
 
-          CURRENT CONVERSATION:
-          "${curTopic}"
-          TOPIC STRUCTURE:
-          "${output}"
-          STATE TO REVISE:
-          "${querySuggestOptionStageName.value}"
-          MENTOR DIRECTIONS:
-          "${mentorDirections}"
+        AUTHORING CONTEXT (sole grounding for persona/goal/age/gender and any factual claims):
+        "
+        ${buildAuthoringContext()}
+        "
+        # Tailor USERMENU and any suggested next-state AGENT lines to persona, dialogue goal (Education | Persuasion | Education & Persuasion), age range, and gender.
+        # If a fact is missing here, do NOT invent it.
 
+        CURRENT CONVERSATION (FSM script for this topic; includes prior states and the target state's AGENT line):
+        "
+        ${curTopic}
+        "
 
-          RULES:
-          - Adhere to safety guardrails for both the agent uttersnces and the user options. Do not give medical advice, and don't allow the user to ask for medical advice.
-          - Do not ask questions or say things that are too personal. Keep things professional but also friendly such that the agent can really get to know the user without being intrusive.
-          - Keep each agent utterance shorter than 20 words
-          - Do not use emojis
-          - Keep things conversational. Do not just act as a lecturer. Imagine the agent is really talking to a human that may know nothing about the topic. Through your conversation design,
-            you should provide enough context and allow the user options to really engage the user in the conversation.
-          - Do not generate anything other than the requested output.
-          - Only return the new generated UserOption.
+        TOPIC STRUCTURE (goal + current topic only):
+        "
+        ${topicStructureSummary}
+        "
+
+        STATE TO REVISE (generate for this state only):
+        "
+        ${querySuggestOptionStageName.value}
+        "
+
+        MENTOR DIRECTIONS (optional; apply minimal, precise adjustments if provided):
+        "
+        ${mentorDirections}
+        "
+
+        TASK:
+        Suggest a USERMENU for the target state based strictly on the current conversation flow:
+        1) Read the target state's AGENT line and preceding context in CURRENT CONVERSATION.
+        2) Generate natural, persona‑ and goal‑aware user replies that a real user would click to “say” next.
+        3) For each option, select the most suitable next state:
+          • Prefer an EXISTING state name if it fits (from CURRENT CONVERSATION / TOPIC STRUCTURE).
+          • If no existing state fits, PROPOSE a NEW state name and provide one ≤20‑word AGENT line for that new state.
+
+        HARD GROUNDING & SAFETY:
+        - Serious health context; respectful, inclusive, autonomy‑supportive; no slang/emojis/humor.
+        - Do NOT include options that request diagnosis/treatment/individualized medical advice.
+        - Use factual content only if present in AUTHORING CONTEXT; otherwise keep responses relational (reflect, affirm, normalize, check understanding, summarize/bridge).
+        - Maintain continuity with what was already said; avoid contradictions or resets.
+
+        PERSONA & GOAL TAILORING:
+        - Phrase options as this persona would naturally respond, considering goal/age/gender.
+        - Goal emphasis:
+          • Education → clarify/learn‑more; teach‑back friendly
+          • Persuasion → reflect/normalize; gently evoke change talk; offer choice
+          • Education & Persuasion → balanced mix
+        - Plain, warm, serious, autonomy‑supportive language.
+
+        USERMENU RULES (MAX 3):
+        - Provide **exactly 3** options (maximum 3).
+        - Each option is a short, natural user reply (**≤ 12 words**), persona/goal‑aware.
+        - Vary intent across options (agree/affirm, ask/clarify, doubt/hesitate/curiosity, proceed/plan).
+        - Each option must end with => next_state_name.
+          • Use an EXISTING state name if appropriate.
+          • Otherwise create a NEW, unique lower_snake_case name that reflects the intent (e.g., reflect_fear, ask_more_details, summarize_bridge).
+
+        NEXT‑STATE SUGGESTION RULES (only when the state is NEW):
+        - For every option that maps to a NEW state name (not found in CURRENT CONVERSATION / TOPIC STRUCTURE), output ONE minimal next‑state block:
+          STATE: <new_state_name>
+          AGENT: <one ≤ 20‑word persona‑ & goal‑aware agent utterance that logically follows the option>
+        - Do NOT include USERMENU under these suggested state blocks.
+        - If multiple options map to the same NEW state, output the block ONCE.
+
+        OUTPUT FORMAT (STRICT — return only these sections, in this order; no commentary, no code fences):
+
+        USERMENU:
+        <user‑like option 1> => <next_state_name_1>
+        <user‑like option 2> => <next_state_name_2>
+        <user‑like option 3> => <next_state_name_3>
+
+        [For each NEW next_state_name only, add a minimal block:]
+        STATE: <new_state_name_1>
+        AGENT: <≤ 20‑word agent utterance, persona & goal aware>
+
+        STATE: <new_state_name_2>
+        AGENT: <≤ 20‑word agent utterance, persona & goal aware>
+
+        VALIDATION (before returning):
+        - USERMENU: **No more than 3** options; ≤ 12 words each; natural; persona/goal‑aware; varied intent; context‑consistent.
+        - Each option maps to a valid next_state_name (existing or new). Existing names reused correctly; new names unique (lower_snake_case).
+        - For every NEW state referenced, exactly one STATE/AGENT block is provided; AGENT line ≤ 20 words; serious, inclusive, grounded.
+        - Return ONLY the USERMENU block + any NEW STATE blocks in the exact format above.
         `,
       },
     ]
@@ -1278,7 +1407,7 @@ export const useDesignerStore = defineStore('designer', () => {
       messages,
       temperature: 0.3,
       top_p: 1,
-      max_tokens: 4000,
+      max_tokens: 10000,
     })
     // const res = await http.post<ApiRes>({
     //   url: '/v1/chat/completions',
