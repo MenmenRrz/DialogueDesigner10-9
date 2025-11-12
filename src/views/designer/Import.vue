@@ -1,5 +1,12 @@
 <template>
   <div class="import-wrapper">
+    <div class="user-banner">
+      <span v-if="userNameDisplay">Signed in as <strong>{{ userNameDisplay }}</strong></span>
+      <span v-else>Please set a user name before working on dialogue.</span>
+      <a-button size="small" type="link" @click="openUserNameModal()">
+        {{ userNameDisplay ? 'Change User' : 'Set User' }}
+      </a-button>
+    </div>
     <a-steps class="step-wrapper" :current="step" @change="onChangeStep">
       <a-step title="Author" description="Set context & source" />
       <a-step title="Review" description="Check generated topic plan" />
@@ -230,10 +237,41 @@
       </a-card>
     </div>
   </div>
+  <a-modal
+    v-model:open="userNameModalVisible"
+    title="Set workspace user"
+    :closable="!userNameModalRequired"
+    :maskClosable="!userNameModalRequired"
+    destroyOnClose
+    @cancel="handleUserNameCancel"
+  >
+    <p class="user-modal-desc">
+      Enter a name to keep your saved workspaces separate from other users on this device.
+    </p>
+    <a-form layout="vertical">
+      <a-form-item
+        label="User name"
+        :validate-status="userNameError ? 'error' : ''"
+        :help="userNameError || ''"
+      >
+        <a-input
+          v-model:value="pendingUserName"
+          placeholder="Enter your name"
+          @pressEnter="handleUserNameSubmit"
+        />
+      </a-form-item>
+    </a-form>
+    <template #footer>
+      <div class="user-modal-footer">
+        <a-button v-if="!userNameModalRequired" @click="handleUserNameCancel">Cancel</a-button>
+        <a-button type="primary" @click="handleUserNameSubmit">Save</a-button>
+      </div>
+    </template>
+  </a-modal>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, type UploadChangeParam, type UploadProps } from 'ant-design-vue'
 import { InboxOutlined, DownOutlined, RightOutlined } from '@ant-design/icons-vue'
@@ -281,10 +319,17 @@ const {
   api1Result,
   authoringContext,
   queryTopicStrucLoading,
+  userName,
 } = storeToRefs(designerStore)
 
-const { updateStep, convert2topic, updateAuthoringContext, queryTopicStructure, goalOptions } =
-  designerStore
+const {
+  updateStep,
+  convert2topic,
+  updateAuthoringContext,
+  queryTopicStructure,
+  goalOptions,
+  updateUserName,
+} = designerStore
 
 const fileList = ref([])
 
@@ -313,10 +358,56 @@ const personaValue = computed({
   set: (value: string) => updateAuthoringContext({ persona: value }),
 })
 
+const userNameModalVisible = ref(false)
+const userNameModalRequired = ref(false)
+const pendingUserName = ref('')
+const userNameError = ref('')
+
+const userNameDisplay = computed(() => (userName.value || '').trim())
+
+const openUserNameModal = (required = false) => {
+  userNameModalRequired.value = required
+  pendingUserName.value = userNameDisplay.value
+  userNameError.value = ''
+  userNameModalVisible.value = true
+}
+
+const handleUserNameSubmit = () => {
+  const trimmed = pendingUserName.value.trim()
+  if (!trimmed.length) {
+    userNameError.value = 'Please enter your name.'
+    return
+  }
+  updateUserName(trimmed)
+  userNameModalVisible.value = false
+}
+
+const handleUserNameCancel = () => {
+  if (userNameModalRequired.value) {
+    return
+  }
+  userNameModalVisible.value = false
+}
+
+const ensureUserName = () => {
+  if (userNameDisplay.value) {
+    return true
+  }
+  openUserNameModal(true)
+  message.info('Please set your user name to keep workspaces separate.')
+  return false
+}
+
 const goalSelectOptions = goalOptions.map((option) => ({
   label: option.label,
   value: option.value,
 }))
+
+onMounted(() => {
+  if (!userNameDisplay.value) {
+    nextTick(() => openUserNameModal(true))
+  }
+})
 
 const expandedSessionKeys = ref<string[]>([])
 const expandedTopics = ref<Record<string, string[]>>({})
@@ -594,6 +685,9 @@ watch(
 )
 
 const onConvertToTopic = () => {
+  if (!ensureUserName()) {
+    return
+  }
   if (!convertContent.value.trim()) {
     message.warning('Please provide content before generating a plan.')
     return
@@ -607,6 +701,9 @@ const onBack = () => {
 }
 
 const onRegenerate = () => {
+  if (!ensureUserName()) {
+    return
+  }
   if (!convertContent.value.trim()) {
     message.warning('Please provide content before regenerating.')
     return
@@ -615,6 +712,9 @@ const onRegenerate = () => {
 }
 
 const onGenerateDialogue = () => {
+  if (!ensureUserName()) {
+    return
+  }
   if (!sessionTopics.value.length) {
     message.warning('Generate a topic plan before creating a dialogue.')
     return
@@ -653,6 +753,21 @@ const handleChange = (info: UploadChangeParam) => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+
+  .user-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 1px solid #f0f0f0;
+    border-radius: 6px;
+    background: #fafafa;
+    color: #595959;
+
+    strong {
+      color: #1f1f1f;
+    }
+  }
 
   .step-wrapper {
     padding: 12px 18vw;
@@ -963,5 +1078,16 @@ const handleChange = (info: UploadChangeParam) => {
     font-size: 15px;
     color: #777;
   }
+}
+
+.user-modal-desc {
+  margin-bottom: 12px;
+  color: #595959;
+}
+
+.user-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 </style>

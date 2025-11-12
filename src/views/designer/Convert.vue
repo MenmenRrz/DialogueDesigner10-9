@@ -36,6 +36,13 @@
 
       </div>
 
+      <div class="header-user">
+        <span v-if="userNameDisplay" class="user-name-label">User: {{ userNameDisplay }}</span>
+        <a-button type="link" size="small" @click="openUserNameModal()">
+          {{ userNameDisplay ? 'Change User' : 'Set User' }}
+        </a-button>
+      </div>
+
       <span class="auto-save-indicator" v-if="autoSaveMessage">{{ autoSaveMessage }}</span>
 
     </div>
@@ -376,6 +383,68 @@
 
       </a-modal>
 
+      <a-modal
+
+        v-model:open="userNameModalVisible"
+
+        title="Set workspace user"
+
+        :closable="!userNameModalRequired"
+
+        :maskClosable="!userNameModalRequired"
+
+        destroyOnClose
+
+        @cancel="handleUserNameCancel"
+
+      >
+
+        <p class="user-modal-desc">
+
+          Enter a name to keep your saved workspaces separate from other users on this device.
+
+        </p>
+
+        <a-form layout="vertical">
+
+          <a-form-item
+
+            label="User name"
+
+            :validate-status="userNameError ? 'error' : ''"
+
+            :help="userNameError || ''"
+
+          >
+
+            <a-input
+
+              v-model:value="pendingUserName"
+
+              placeholder="Enter your name"
+
+              @pressEnter="handleUserNameSubmit"
+
+            />
+
+          </a-form-item>
+
+        </a-form>
+
+        <template #footer>
+
+          <div class="user-modal-footer">
+
+            <a-button v-if="!userNameModalRequired" @click="handleUserNameCancel">Cancel</a-button>
+
+            <a-button type="primary" @click="handleUserNameSubmit">Save</a-button>
+
+          </div>
+
+        </template>
+
+      </a-modal>
+
       </div>
 
     </a-spin>
@@ -483,6 +552,7 @@ const {
   retryTopic,
   restoreGenerationState,
   flushAllTopicGraphs,
+  updateUserName,
 } = designerStore
 
 const {
@@ -497,9 +567,42 @@ const {
   queryTopicStrucLoading,
   topicIssues,
   api1Result,
+  userName,
 } = storeToRefs(designerStore)
 
 const OPTION_NODE_SHAPE = 'option-node'
+
+const userNameModalVisible = ref(false)
+const userNameModalRequired = ref(false)
+const pendingUserName = ref('')
+const userNameError = ref('')
+
+const userNameDisplay = computed(() => (userName.value || '').trim())
+
+const openUserNameModal = (required = false) => {
+  userNameModalRequired.value = required
+  pendingUserName.value = userNameDisplay.value
+  userNameError.value = ''
+  userNameModalVisible.value = true
+}
+
+const handleUserNameSubmit = () => {
+  const trimmed = pendingUserName.value.trim()
+  if (!trimmed.length) {
+    userNameError.value = 'Please enter your name.'
+    return
+  }
+  updateUserName(trimmed)
+  userNameModalVisible.value = false
+}
+
+const handleUserNameCancel = () => {
+  if (userNameModalRequired.value) {
+    return
+  }
+  userNameError.value = ''
+  userNameModalVisible.value = false
+}
 
 const applyOptionPortAttrs = (node: any, attrs: Record<string, unknown>) => {
   const ports = node?.getPorts?.() ?? []
@@ -2029,6 +2132,9 @@ const onExport = () => {
 
 
 onMounted(() => {
+  if (!userNameDisplay.value) {
+    nextTick(() => openUserNameModal(true))
+  }
 
   Graph.registerConnector(
 
@@ -2521,6 +2627,26 @@ onBeforeUnmount(() => {
 
     }
 
+    .header-user {
+
+      display: flex;
+
+      align-items: center;
+
+      gap: 8px;
+
+      color: #595959;
+
+      .user-name-label {
+
+        font-weight: 600;
+
+        color: #1f1f1f;
+
+      }
+
+    }
+
 
 
     .auto-save-indicator {
@@ -2868,6 +2994,24 @@ onBeforeUnmount(() => {
     }
 
   }
+
+}
+
+.user-modal-desc {
+
+  margin-bottom: 12px;
+
+  color: #595959;
+
+}
+
+.user-modal-footer {
+
+  display: flex;
+
+  justify-content: flex-end;
+
+  gap: 8px;
 
 }
 

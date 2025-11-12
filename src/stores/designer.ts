@@ -102,6 +102,7 @@ export interface TopicJob {
 const GENERATION_STORAGE_KEY = 'designer-generation-state'
 const GENERATION_FINGERPRINT_KEY = 'designer-generation-fingerprint'
 const GENERATION_FINGERPRINT_VERSION = '2'
+const USER_PROFILE_STORAGE_KEY = 'designer-user-profile'
 
 export const useDesignerStore = defineStore('designer', () => {
   const appStore = useAppStore()
@@ -109,6 +110,7 @@ export const useDesignerStore = defineStore('designer', () => {
   const { apiKey } = storeToRefs(appStore)
 
   const step = ref(0)
+  const userName = ref('')
   const type = ref(ConvertType.TEXT)
   const convertContent = ref('')
   const newConvertContent = ref('')
@@ -639,8 +641,8 @@ export const useDesignerStore = defineStore('designer', () => {
       return
     }
 
-    window.localStorage.removeItem(GENERATION_STORAGE_KEY)
-    window.localStorage.removeItem(GENERATION_FINGERPRINT_KEY)
+    window.localStorage.removeItem(buildUserScopedKey(GENERATION_STORAGE_KEY))
+    window.localStorage.removeItem(buildUserScopedKey(GENERATION_FINGERPRINT_KEY))
   }
 
   const persistGenerationState = () => {
@@ -689,8 +691,14 @@ export const useDesignerStore = defineStore('designer', () => {
         fingerprintVersion: GENERATION_FINGERPRINT_VERSION,
       }
 
-      window.localStorage.setItem(GENERATION_STORAGE_KEY, JSON.stringify(payload))
-      window.localStorage.setItem(GENERATION_FINGERPRINT_KEY, buildGenerationFingerprint())
+      window.localStorage.setItem(
+        buildUserScopedKey(GENERATION_STORAGE_KEY),
+        JSON.stringify(payload),
+      )
+      window.localStorage.setItem(
+        buildUserScopedKey(GENERATION_FINGERPRINT_KEY),
+        buildGenerationFingerprint(),
+      )
     } catch (error) {
       console.error('Failed to persist generation state', error)
     }
@@ -701,12 +709,14 @@ export const useDesignerStore = defineStore('designer', () => {
       return false
     }
 
-    const raw = window.localStorage.getItem(GENERATION_STORAGE_KEY)
+    const raw = window.localStorage.getItem(buildUserScopedKey(GENERATION_STORAGE_KEY))
     if (!raw) {
       return false
     }
 
-    const storedFingerprint = window.localStorage.getItem(GENERATION_FINGERPRINT_KEY)
+    const storedFingerprint = window.localStorage.getItem(
+      buildUserScopedKey(GENERATION_FINGERPRINT_KEY),
+    )
     const currentFingerprint = buildGenerationFingerprint()
     if (storedFingerprint && storedFingerprint !== currentFingerprint) {
       clearGenerationState()
@@ -1324,11 +1334,6 @@ export const useDesignerStore = defineStore('designer', () => {
         ${curTopic}
         "
 
-        TOPIC STRUCTURE (goal + current topic only):
-        "
-        ${topicStructureSummary}
-        "
-
         STATE TO REVISE (generate for this state only):
         "
         ${querySuggestOptionStageName.value}
@@ -1407,7 +1412,7 @@ export const useDesignerStore = defineStore('designer', () => {
       messages,
       temperature: 0.3,
       top_p: 1,
-      max_tokens: 10000,
+      max_tokens: 800,
     })
     // const res = await http.post<ApiRes>({
     //   url: '/v1/chat/completions',
@@ -1530,7 +1535,42 @@ export const useDesignerStore = defineStore('designer', () => {
     newSuggestOptionAgents.value = val
   }
 
+  if (typeof window !== 'undefined') {
+    try {
+      const storedProfile = window.localStorage.getItem(USER_PROFILE_STORAGE_KEY)
+      if (storedProfile) {
+        const parsed = JSON.parse(storedProfile) as { name?: string }
+        if (parsed?.name && typeof parsed.name === 'string') {
+          userName.value = parsed.name
+        }
+      }
+    } catch {
+      // ignore bad profile data
+    }
+  }
+
+  const updateUserName = (name: string) => {
+    userName.value = name.trim()
+    if (typeof window === 'undefined') {
+      return
+    }
+    try {
+      window.localStorage.setItem(
+        USER_PROFILE_STORAGE_KEY,
+        JSON.stringify({ name: userName.value }),
+      )
+    } catch (error) {
+      console.warn('Failed to persist user name', error)
+    }
+  }
+
+  const buildUserScopedKey = (base: string) => {
+    const suffix = userName.value && userName.value.length ? userName.value : 'default'
+    return `${base}:${suffix}`
+  }
+
   return {
+    userName,
     step,
     authoringContext,
     goalOptions,
@@ -1581,6 +1621,6 @@ export const useDesignerStore = defineStore('designer', () => {
     retryTopic,
     flushAllTopicGraphs,
     restoreGenerationState,
+    updateUserName,
   }
 })
-
