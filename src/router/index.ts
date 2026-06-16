@@ -17,6 +17,11 @@ const routes: RouteRecordRaw[] = [
         name: 'Convert',
         component: () => import(/* webpackChunkName: "convert" */ '@/views/designer/Convert.vue'),
       },
+      {
+        path: 'admin',
+        name: 'AdminMonitor',
+        component: () => import(/* webpackChunkName: "admin" */ '@/views/admin/Monitor.vue'),
+      },
     ],
   },
 ]

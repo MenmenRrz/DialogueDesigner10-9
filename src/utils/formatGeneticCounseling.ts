@@ -1,4 +1,5 @@
 import { v4 as uuidV4 } from 'uuid'
+import { sanitizeMenuTitle } from './menuText'
 
 export interface StageNodeMenu {
   title: string
@@ -10,6 +11,9 @@ export interface StageNodeMenu {
 export interface StageNode {
   stageName: string
   agent: string
+  subtopic?: string
+  miTechnique?: string
+  flowOrder?: string
   menus: Array<StageNodeMenu>
 }
 
@@ -30,6 +34,66 @@ export interface DialogueParseResult {
 const normalizeLineBreaks = (value: string) => value.replace(/\r\n/g, '\n')
 
 const trimLeadingNewline = (value: string) => value.replace(/^\n+/, '')
+
+const extractActionGoMenus = (stageName: string, section: string): StageNodeMenu[] => {
+  const actionIndex = section.toUpperCase().indexOf('ACTION:')
+  if (actionIndex === -1) {
+    return []
+  }
+
+  const actionContent = section.slice(actionIndex + 'ACTION:'.length)
+  const lines = actionContent.split(/\r?\n/)
+  const menus: StageNodeMenu[] = []
+  let currentLabel: string | null = null
+  let autoIndex = 1
+
+  lines.forEach((rawLine) => {
+    let line = rawLine.trim()
+    if (!line.length) {
+      return
+    }
+
+    while (line.startsWith('}')) {
+      currentLabel = null
+      line = line.slice(1).trim()
+    }
+
+    if (!line.length) {
+      return
+    }
+
+    const conditionMatch = line.match(/^(if|else if)\s*\((.*)\)\s*\{?$/i)
+    if (conditionMatch) {
+      const [, keyword, expression] = conditionMatch
+      currentLabel = `${keyword.toUpperCase()} ${expression.trim()}`
+    } else if (/^else\b/i.test(line)) {
+      currentLabel = 'ELSE'
+    }
+
+    const goRegex = /GO\((['"])([^"'()]+)\1\)/gi
+    let match: RegExpExecArray | null
+    while ((match = goRegex.exec(line))) {
+      const target = match[2].trim()
+      if (!target) {
+        continue
+      }
+      const title = currentLabel || `Auto ${autoIndex}`
+      menus.push({
+        title,
+        fromStage: stageName,
+        nextStage: target,
+        id: uuidV4(),
+      })
+      autoIndex += 1
+    }
+
+    if (line.includes('}')) {
+      currentLabel = null
+    }
+  })
+
+  return menus
+}
 
 export const formatGeneticCounseling = (content: string): DialogueParseResult => {
   const topics = new Map<string, StageNode[]>()
@@ -67,7 +131,7 @@ export const formatGeneticCounseling = (content: string): DialogueParseResult =>
     const stages: StageNode[] = []
     const stageNames = new Set<string>()
 
-    stageSections.forEach((section) => {
+    stageSections.forEach((section, stageIndex) => {
       const lines = section
         .split('\n')
         .map((line) => line.trim())
@@ -108,6 +172,21 @@ export const formatGeneticCounseling = (content: string): DialogueParseResult =>
       if (!agentLine) {
         issues.push({ level: 'warning', topic: topicName, state: stageName, message: 'Missing AGENT line.' })
       }
+      const subtopicLine =
+        lines.find((line) => /^SUBTOPIC:/i.test(line)) ??
+        lines.find((line) => /^SUBTOPIC_LABEL:/i.test(line))
+      const miTechniqueLine =
+        lines.find((line) => /^MI_TECHNIQUE:/i.test(line)) ??
+        lines.find((line) => /^MI TECHNIQUE:/i.test(line)) ??
+        lines.find((line) => /^MI:/i.test(line))
+      const flowOrderLine = lines.find((line) => /^FLOW_ORDER:/i.test(line))
+      const subtopic = subtopicLine ? subtopicLine.slice(subtopicLine.indexOf(':') + 1).trim() : ''
+      const miTechnique = miTechniqueLine
+        ? miTechniqueLine.slice(miTechniqueLine.indexOf(':') + 1).trim()
+        : ''
+      const flowOrder = flowOrderLine
+        ? flowOrderLine.slice(flowOrderLine.indexOf(':') + 1).trim()
+        : ''
 
       const userMenuIndex = lines.findIndex((line) => line.startsWith('USERMENU:'))
       const menus: StageNodeMenu[] = []
@@ -130,7 +209,7 @@ export const formatGeneticCounseling = (content: string): DialogueParseResult =>
           }
 
           const [titleRaw, nextRaw] = menuLine.split(/=>/g)
-          const title = titleRaw.trim()
+          const title = sanitizeMenuTitle(titleRaw, '')
           const nextStage = nextRaw.trim()
 
           if (!title || !nextStage) {
@@ -150,30 +229,26 @@ export const formatGeneticCounseling = (content: string): DialogueParseResult =>
             id: uuidV4(),
           })
         })
-      } else {
-        issues.push({ level: 'warning', topic: topicName, state: stageName, message: 'Missing USERMENU section.' })
+      }
+
+      if (!menus.length) {
+        const actionMenus = extractActionGoMenus(stageName, section)
+        if (actionMenus.length) {
+          menus.push(...actionMenus)
+        } else if (stageIndex !== stageSections.length - 1) {
+          issues.push({ level: 'warning', topic: topicName, state: stageName, message: 'Missing USERMENU section.' })
+        }
       }
 
       stages.push({
         stageName,
         agent,
+        subtopic,
+        miTechnique,
+        flowOrder,
         menus,
       })
     })
-
-    if (!stages.some((stage) => stage.stageName === 'end_conversation')) {
-      issues.push({
-        level: 'warning',
-        topic: topicName,
-        state: 'end_conversation',
-        message: 'Missing end_conversation state; a placeholder will be added.',
-      })
-      stages.push({
-        stageName: 'end_conversation',
-        agent: '',
-        menus: [],
-      })
-    }
 
     topics.set(topicName, stages)
   })

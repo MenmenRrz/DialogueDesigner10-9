@@ -1,4 +1,71 @@
+html {
+  font-size: clamp(16px, 0.32vw + 14.8px, 18px);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
   padding: 0;
+  min-width: 320px;
+  font-size: 1rem;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+.ant-btn,
+.ant-input,
+.ant-input-number,
+.ant-select,
+.ant-select-selector,
+.ant-radio-button-wrapper,
+.ant-upload,
+.ant-modal,
+.ant-message,
+.ant-popover,
+.ant-tooltip {
+  font-size: 1rem;
+}
+
+.ant-btn {
+  min-height: 36px;
+}
+
+.ant-card,
+.ant-modal-content {
+  max-width: 100%;
+}
+
+img,
+svg,
+canvas,
+video {
+  max-width: 100%;
+}
+
+@media (max-width: 900px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 520px) {
+  html {
+    font-size: 15.5px;
+  }
 }

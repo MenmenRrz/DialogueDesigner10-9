@@ -9,6 +9,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:ai": "node ../tools/ai-orchestrator.mjs",
+    "dev:r2j": "node ../tools/r2j-worker.mjs",
+    "dev:backend": "run-p dev:ai dev:r2j",
     "build": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",
     "build-only": "vite build",
@@ -21,8 +24,10 @@
   "dependencies": {
     "@antv/x6": "^2.18.1",
     "@antv/x6-vue-shape": "^2.1.2",
+    "@types/dagre": "^0.7.54",
     "@types/nprogress": "^0.2.3",
     "axios": "1.7.2",
+    "dagre": "^0.8.5",
     "lodash": "^4.17.21",
     "lodash-es": "^4.17.21",
     "nprogress": "^0.2.0",

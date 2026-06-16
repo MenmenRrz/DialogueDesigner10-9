@@ -11,6 +11,6 @@ router.beforeEach(async (to: RouteLocationNormalized, _: RouteLocationNormalized
   NProgress.done()
 })
 
-router.afterEach((to: RouteLocationNormalized) => {
+router.afterEach(() => {
   NProgress.done()
 })

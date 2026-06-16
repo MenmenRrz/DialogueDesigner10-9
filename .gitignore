@@ -1,0 +1,8 @@
+dist/
+deploy_bundle/
+node_modules/
+.env*.local
+*.log
+node_modules/.tmp/
+node_modules/.vite/
+node_modules/.vue-global-types/

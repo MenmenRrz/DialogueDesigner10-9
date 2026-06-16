@@ -1,25 +1,23 @@
 import axios, { type AxiosRequestConfig, type AxiosResponse } from 'axios'
-import { message } from 'ant-design-vue'
-import { apiBaseURL } from '@/enums'
-import { HttpResponseCode } from '@/enums/httpCode'
+import type { ApiBaseURL } from '@/enums'
 
 export type HttpResponseData<T = any> = T
 
-export const createHttp = (baseURL: apiBaseURL) => {
+export const createHttp = (baseURL: ApiBaseURL | string) => {
+  const normalizedBaseUrl = String(baseURL || '')
+  const isAbsoluteBaseUrl = /^https?:\/\//i.test(normalizedBaseUrl)
   const service = axios.create({
     baseURL,
-    withCredentials: true,
-    timeout: 60000,
+    withCredentials: !isAbsoluteBaseUrl,
+    timeout: 180000,
   })
 
   service.interceptors.response.use(
-    // @ts-expect-error
     (response: AxiosResponse<HttpResponseData>) => {
       const res = response.data
       return res
     },
     (error) => {
-      message.error(JSON.stringify(error))
       return Promise.reject(error)
     },
   )
